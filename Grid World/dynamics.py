@@ -10,7 +10,7 @@
 
 import numpy as np
 
-def cal_dynamcis(self, stochastic=True):
+def cal_dynamcis(stochastic=True):
     dynamics = np.zeros([12, 4, 12, 3]) # current state x action x next state x reward
     for current_state in range(12):
         if current_state in [3,5,7]:    # BLOCK, WIN, LOSE
