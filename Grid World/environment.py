@@ -1,7 +1,7 @@
 import numpy as np
 
 
-ACTION_MAP = {'North':(-1,0), 'South':(1,0), 'East':(0,1), 'West':(0,-1)}
+ACTION_MOVE = {'North':(-1,0), 'South':(1,0), 'East':(0,1), 'West':(0,-1)}
 STATE_SPACE = (
     (0,0), (0,1), (0,2), (0,3),
     (1,0), (1,1), (1,2), (1,3),
@@ -33,7 +33,7 @@ class Environment:
         if self.stochastic and action == 'North':
             action = np.random.choice(('North', 'East', 'West'), p=(0.8, 0.1, 0.1))
 
-        next_state = tuple([i + j for i, j in zip(self.current_state, ACTION_MAP[action])])
+        next_state = tuple([i + j for i, j in zip(self.current_state, ACTION_MOVE[action])])
 
         if self.check_valid_state(next_state):
             return next_state
