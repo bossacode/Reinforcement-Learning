@@ -2,6 +2,7 @@ import numpy as np
 from collections import deque
 from abc import ABCMeta, abstractmethod
 from environment import Environment, WIN, LOSE, ACTION_MOVE
+from dynamics import cal_dynamcis
 
 
 ACTION_SPACE = ('North', 'South', 'East', 'West')
@@ -32,10 +33,17 @@ class RandomAgent(Agent):
     Agent that selects action randomly
     '''
     def decide_action(self):
+        '''
+        random action
+        '''
         action = np.random.choice(ACTION_SPACE)
         return action
     
     def run(self, n_iter, show_board=False):
+        '''
+        n_samp: number of Monte Carlo episodes
+        show_board: whether to show dashboard of agent movement
+        '''
         result_hist = []
         for iter in range(n_iter):
             while not (self.env.current_state in (WIN, LOSE)):    # termination condition
@@ -50,10 +58,45 @@ class RandomAgent(Agent):
         return result_hist
 
 
+class PIAgent(Agent):
+    '''
+    Agent using Policy Iteration
+    '''
+    def __init__(self, stochastic=True):
+        super().__init__(stochastic)
+        self.av_func = np.zeros([12,4])
+        self.dynamics = cal_dynamcis(stochastic)    # current state x action x next state x reward
+
+    def cal_av_func(self):
+        pass
+
+    def decide_action(self, state, eps):
+        '''
+        epsilon-greedy algorithm that returns action for given state
+        set eps = 0 for greedy action, eps = 1 for random action
+
+        state: current state
+        eps: epsilon value for epsilon-greedy algorithm
+        '''
+        if np.random.random() >= eps:
+            # greedy action with prob. 1 - epsilon
+            action = REVERSE_ACTION_MAP[np.argmax(self.av_func[STATE_MAP[state],:])]
+        else:
+            # random action with prob. epsilon                 
+            action = np.random.choice(ACTION_SPACE)
+        return action
+
+
+
+
 class MCAgent(Agent):
     '''
     Agent using Monte Carlo method to estimate value functions when dynamics are unknown
     '''
+    def __init__(self, stochastic=True):
+        super().__init__(stochastic)
+        self.av_func = np.zeros([12,4])     # initial value of action-value function
+
     def est_av_func(self, n_samp, eps, gamma):
         '''
         Monte Carlo estimation of action-value function
@@ -67,7 +110,7 @@ class MCAgent(Agent):
         _, trajectory = self.run(n_samp, eps)   # trajectory is sampled by decide_action and environment
         for episode in trajectory:
             av_func = np.zeros([12,4])  # state x action
-            est_reward = 0
+            est_reward = 0              # estimated reward
             episode.reverse()
             for state, action, reward in episode:
                 est_reward = gamma * est_reward + reward
@@ -83,6 +126,7 @@ class MCAgent(Agent):
     def decide_action(self, state, eps):
         '''
         epsilon-greedy algorithm that returns action for given state
+        set eps = 0 for greedy action, eps = 1 for random action
 
         state: current state
         eps: epsilon value for epsilon-greedy algorithm
@@ -101,11 +145,10 @@ class MCAgent(Agent):
         gamma: discount rate for reward
         eps: epsilon value for epsilon-greedy algorithm
         eps_decay: whether to decay epsilon
-        eps_decay_rate: decay rate of epsilon for every iteration
+        eps_decay_rate: decay rate of epsilon for every iteration when eps_decay=True
         tol: threshold for stopping training
         '''
         iter = 1
-        self.av_func = np.zeros([12,4])
         av_func = self.est_av_func(n_samp, eps=1, gamma=gamma)  # initial policy is random policy(eps = 1)
         while True:
             print('iteration:', iter)
@@ -113,7 +156,6 @@ class MCAgent(Agent):
             print('updated action-value function:', av_func)
             print(abs(self.av_func - av_func) < tol)
             print('-' * 100)
-
             # stop when difference between all values of a-v function and updated a-v function is below tol
             if (abs(self.av_func - av_func) < tol).all():
                 print('Converged to optimal action-value function!')
@@ -121,15 +163,20 @@ class MCAgent(Agent):
 
             self.update_av_func(av_func)
             av_func = self.est_av_func(n_samp, eps, gamma)
+            iter += 1
 
             if eps_decay:
                 eps *= eps_decay_rate
-            iter += 1
 
-    def run(self, n_iter, eps = 0.1, show_board=False):
+    def run(self, n_samp, eps=0.1, show_board=False):
+        '''
+        n_samp: number of Monte Carlo episodes
+        eps: epsilon value for epsilon-greedy algorithm
+        show_board: whether to show dashboard of agent movement
+        '''
         trajectory_list = []
         result_hist = []
-        for iter in range(n_iter):
+        for iter in range(n_samp):
             trajectory = deque()
             while not (self.env.current_state in (WIN, LOSE)):    # termination condition
                 action = self.decide_action(self.env.current_state, eps=eps)
